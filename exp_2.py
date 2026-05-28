@@ -1,11 +1,12 @@
-import numpy as np  
+import numpy as np 
+from grad_exp import var, fnsum, fnmul, fnmatmul, fnsigmoid, autograd ,fnsum_all
 class layer():
     
     def __init__(self,numnodesin,numnodesout):
         self.numnodesin=numnodesin
         self.numnodesout=numnodesout
-        self.weights=2*np.random.random((numnodesout,numnodesin))-1
-        self.biases=2*np.random.random((numnodesout,1))-1
+        self.weights = var(2 * np.random.random((numnodesout, numnodesin)) - 1)
+        self.biases = var(2 * np.random.random((numnodesout, 1)) - 1)
         self.costgradientw=np.zeros((numnodesout,numnodesin))
         self.costgradientb=np.zeros((numnodesout,1))
         self.layeratt={}#to store data so that the calculations dont need to be done multiple times
@@ -16,13 +17,11 @@ class layer():
         if deriv==True:
             return x*(1-x)    
         return 1/(1+np.exp(-x))
-    def calcoutputs(self,inputs):
-        outs=(np.dot(self.weights,inputs))
-        outs+=self.biases
-        x=self.Activationfunc(outs)
-        self.layeratt["acts"]=x
-        self.layeratt["inputs"]=inputs
-        return x
+    def calcoutputs(self, inputs):
+        if not isinstance(inputs, var):
+            inputs = var(inputs)
+        z = fnmatmul(self.weights, inputs) + self.biases
+        return fnsigmoid(z)
     def calcoutlayernodevalues(self,expoutputs):#for output layer only
         dcda=self.layeratt["acts"]-expoutputs
         dadz=self.Activationfunc(self.layeratt["acts"], True)
@@ -50,50 +49,38 @@ class nn():
         return inputs
     def classify(self,inputs):#choose the final answer
         outs=self.calc(inputs)
-        return np.argmax(outs)
+        return np.argmax(outs.val)
     def cost(self,datapoint):
         out=self.calc(datapoint[0])
-        costarr=((out-datapoint[1])**2)/2
-        cost=np.sum(costarr)
+        costarr=((out-datapoint[1])**2)*0.5
+        cost=np.sum(costarr.val)
         return cost
     def costtotal(self, data):
         totalcost = sum(self.cost(d) for d in data)
         return totalcost / len(data)
-    def updateallgrads(self,datapoint):
-        self.calc(datapoint[0])
-        outputlayer=self.layers[-1]
-        nodevalues=outputlayer.calcoutlayernodevalues(datapoint[1])#output layer need different calculation than hidden layers
-        outputlayer.updategrads(nodevalues)
-        for i in range(len(self.layers)-2,-1,-1):
-            hiddenlayer=self.layers[i]
-            nodevalues=hiddenlayer.hiddennodevalues(self.layers[i+1],nodevalues)
-            hiddenlayer.updategrads(nodevalues)
-    def applyallgrad(self,lr):
-        for i in self.layers:
-            i.applygrad(lr)
+    def learn(self, trainbatch, lr):
+        weight_grads = {l.weights: np.zeros_like(l.weights.val) for l in self.layers}
+        bias_grads = {l.biases: np.zeros_like(l.biases.val) for l in self.layers}
 
-    def learn(self,trainbatch,lr):
-        for layer in self.layers:
-            layer.costgradientw = np.zeros_like(layer.costgradientw)
-            layer.costgradientb = np.zeros_like(layer.costgradientb)
-        for i in trainbatch:
-            self.updateallgrads(i)
-        self.applyallgrad(lr/len(trainbatch))#outside because apply once for the batch
+        for datapoint in trainbatch:
+            inputs = var(datapoint[0])
+            expected= datapoint[1]
+            out=self.calc(inputs)
+            loss=fnsum_all((out - var(expected)) ** 2 * 0.5)
+            grads=autograd(loss)
 
+            for l in self.layers:
+                if l.weights in grads:
+                    weight_grads[l.weights] += grads[l.weights]
+                if l.biases in grads:
+                    bias_grads[l.biases] += grads[l.biases]
 
-
+        for l in self.layers:
+            l.weights.val-=lr / len(trainbatch) * weight_grads[l.weights]
+            l.biases.val-=lr / len(trainbatch) * bias_grads[l.biases]
+        
 
 
-
-
-
-
-
-
-#simple first test
-# data=np.array([[[1,1],[0,1]],[[0,0],[0,1]],[[1,0],[1,0]],[[0,1],[1,0]]])    
-# nn1=nn([2,1,2])
-# print(nn1.cost([[1,1],[0,1]]))
 
 np.random.seed(45)
 #simple training with two category output
