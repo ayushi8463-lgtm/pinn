@@ -1,4 +1,5 @@
 import numpy as np 
+import matplotlib.pyplot as plt
 from grad_exp import var, fnsum, fnmul, fnmatmul, fnsigmoid, autograd ,fnsum_all
 class layer():
     
@@ -17,10 +18,12 @@ class layer():
         if deriv==True:
             return x*(1-x)    
         return 1/(1+np.exp(-x))
-    def calcoutputs(self, inputs):
+    def calcoutputs(self, inputs,is_output=False):
         if not isinstance(inputs, var):
             inputs = var(inputs)
         z = fnmatmul(self.weights, inputs) + self.biases
+        if is_output:
+            return z  
         return fnsigmoid(z)
     def calcoutlayernodevalues(self,expoutputs):#for output layer only
         dcda=self.layeratt["acts"]-expoutputs
@@ -43,9 +46,10 @@ class nn():
         self.layers=[]
         for i in range(len(layersizes)-1):
             self.layers.append(layer(self.layersizes[i],self.layersizes[i+1]))
-    def calc(self,inputs):
-        for x in self.layers:
-            inputs=x.calcoutputs(inputs)#output becomes the next input
+    def calc(self, inputs):
+        for i, x in enumerate(self.layers):
+            is_output = (i == len(self.layers) - 1)
+            inputs = x.calcoutputs(inputs, is_output=is_output)
         return inputs
     def classify(self,inputs):#choose the final answer
         outs=self.calc(inputs)
@@ -58,64 +62,70 @@ class nn():
     def costtotal(self, data):
         totalcost = sum(self.cost(d) for d in data)
         return totalcost / len(data)
-    def learn(self, trainbatch, lr):
-        weight_grads = {l.weights: np.zeros_like(l.weights.val) for l in self.layers}
-        bias_grads = {l.biases: np.zeros_like(l.biases.val) for l in self.layers}
+    # def learn(self, trainbatch, lr):
+    #     weight_grads = {l.weights: np.zeros_like(l.weights.val) for l in self.layers}
+    #     bias_grads = {l.biases: np.zeros_like(l.biases.val) for l in self.layers}
 
-        for datapoint in trainbatch:
-            inputs = var(datapoint[0])
-            expected= datapoint[1]
-            out=self.calc(inputs)
-            loss=fnsum_all((out - var(expected)) ** 2 * 0.5)
-            grads=autograd(loss)
+    #     for datapoint in trainbatch:
+    #         inputs = var(datapoint[0])
+    #         expected= datapoint[1]
+    #         out=self.calc(inputs)
+    #         loss=fnsum_all((out - var(expected)) ** 2 * 0.5)
+    #         grads=autograd(loss)
 
-            for l in self.layers:
-                if l.weights in grads:
-                    weight_grads[l.weights] += grads[l.weights]
-                if l.biases in grads:
-                    bias_grads[l.biases] += grads[l.biases]
+    #         for l in self.layers:
+    #             if l.weights in grads:
+    #                 weight_grads[l.weights] += grads[l.weights]
+    #             if l.biases in grads:
+    #                 bias_grads[l.biases] += grads[l.biases]
 
-        for l in self.layers:
-            l.weights.val-=lr / len(trainbatch) * weight_grads[l.weights]
-            l.biases.val-=lr / len(trainbatch) * bias_grads[l.biases]
-        
+    #     for l in self.layers:
+    #         l.weights.val-=lr / len(trainbatch) * weight_grads[l.weights]
+    #         l.biases.val-=lr / len(trainbatch) * bias_grads[l.biases]
+    def learn_pinn(self,epochs,lr):
+        for e in range(epochs):
+            phyloss=var(0.0)
+            for t in t_collocation:
+                t_var=var(np.array([[t]]))
+                u= self.calc(t_var)#forward pass
+                dudt=autograd(u,t_var)[t_var]
+                residual=dudt + u
+                phyloss=phyloss+fnsum_all(residual ** 2)
+            #boundary condition u(0)=1
+            t0=var(np.array([[0.0]]))
+            u0 =self.calc(t0)
+            boundary_loss=fnsum_all((u0-var(np.array([[1.0]])))**2)
+            total_loss = phyloss + var(np.array(50.0)) * boundary_loss  # weight boundary more
+            # update weights
+            grads=autograd(total_loss)
+            for layer in self.layers:
+                if layer.weights in grads:
+                    layer.weights.val -= lr * grads[layer.weights].val
+                if layer.biases in grads:
+                    layer.biases.val -= lr * grads[layer.biases].val
+            
+            if e % 1000 == 0:
+                print(f"epoch {e}  loss: {total_loss.val:.4f}")
 
 
+#ode is du/dt=-u and boundary point is u(0)=1
+pinn1 = nn([1, 20, 20, 1])
 
-np.random.seed(45)
-#simple training with two category output
-c1 = np.random.randn(50, 2) + np.array([1, 1])
-y1 = np.tile([1, 0], (50, 1))
 
-c2 = np.random.randn(50, 2) + np.array([4, 4])
-y2 = np.tile([0, 1], (50, 1))
+t_collocation=np.linspace(0, 2, 100)#100 points from t=0 to 2
+pinn1 = nn([1, 20, 20, 1])
+pinn1.learn_pinn(epochs=10000, lr=0.001)
+# compare against analytical solution u(t) = e^(-t)
+t_test=np.linspace(0, 2, 200)
+u_analytical=np.exp(-t_test)
+u_pinn=[pinn1.calc(var(np.array([[t]]))).val[0][0] for t in t_test]
 
-X = np.vstack([c1, c2])
-y = np.vstack([y1, y2])
+plt.plot(t_test, u_analytical, label='Analytical: e^(-t)', color='blue')
+plt.plot(t_test, u_pinn, label='PINN', color='red', linestyle='--')
+plt.xlabel('t')
+plt.ylabel('u(t)')
+plt.title('PINN vs Analytical Solution')
+plt.legend()
+plt.grid(True)
+plt.show()
 
-idx = np.random.permutation(100)
-X, y = X[idx], y[idx]
-#taing 80% data for training, 20% for testing
-X_train, y_train = X[:80], y[:80]
-X_test,  y_test  = X[80:], y[80:]
-
-train_data = [[X_train[i].reshape(-1,1), y_train[i].reshape(-1,1)] for i in range(len(X_train))]
-test_data  = [[X_test[i].reshape(-1,1),  y_test[i].reshape(-1,1)]  for i in range(len(X_test))]
-
-nn1 = nn([2, 4, 2])
-print("cost before training:", nn1.cost(train_data[0]))
-
-epochs = 1000
-for e in range(epochs):
-    nn1.learn(train_data, lr=0.1)
-    if e % 100 == 0:
-        print(f"epoch {e}  cost: {nn1.costtotal(train_data):.4f}")
-
-correct = 0
-for d in test_data:
-    pred   = nn1.classify(d[0])
-    actual = np.argmax(d[1])
-    if pred == actual:
-        correct += 1
-
-print(f"\nAccuracy: {correct}/{len(test_data)} = {correct/len(test_data)*100}%")
