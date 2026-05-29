@@ -36,28 +36,17 @@ def fnsum(var1, var2):
     return var(var1.val + var2.val, [var1, var2], [x, x])
 
 def fnmul(var1, var2):
-    val1 = var1.val.copy()
-    val2 = var2.val.copy()
-    x1 = lambda g: var(g.val * val2) if isinstance(g, var) else var(g * val2)
-    x2 = lambda g: var(g.val * val1) if isinstance(g, var) else var(g * val1)
+    val1 = var1.val
+    val2 = var2.val
+    x1 = lambda g: var(g.val * val2) 
+    x2 = lambda g: var(g.val * val1)
     return var(var1.val * var2.val, [var1, var2], [x1, x2])
 def fnmatmul(var1, var2):
-    val1 = var1.val.copy()
-    val2 = var2.val.copy()
-    
-    def get_val(g):
-        g_val = g.val if isinstance(g, var) else np.array(g)  # handles int/float too
-        if g_val.ndim == 0:
-            g_val = g_val.reshape(1, 1)
-        return g_val
-    
-    def x1(g):
-        return var(get_val(g) @ val2.T)
-    
-    def x2(g):
-        return var(val1.T @ get_val(g))
-    
-    return var(var1.val @ var2.val, [var1, var2], [x1, x2])
+    val1 = var1.val
+    val2 = var2.val
+    x1 = lambda g: var(g.val @ val2.T)
+    x2 = lambda g: var(val1.T @ g.val)
+    return var(val1 @ val2, [var1, var2], [x1, x2])
 def fnsigmoid(v):
     sig = 1 / (1 + np.exp(-v.val))
     sig_var = var(sig)
@@ -70,41 +59,40 @@ def fnsub(var1, var2):
     return var(var1.val - var2.val,[var1, var2], [x1, x2])
 
 def fnpow(v, power):
-    val_og = v.val.copy()
+    val_og = v.val
     x = lambda g: g*var(power* (val_og **(power - 1)))
     return var(v.val**power, [v], [x])
-def fnsum_all(v):
-    x=lambda g: g*var(np.ones_like(v.val)) 
-    return var(np.sum(v.val), [v], [x])
 
 
 def autograd(t, wrt=None):
     #Step 1:topological sort
-    topo = []
-    visited = set()
+    topo= []
+    visited= set()
     def build_topo(node):
         if id(node) not in visited:
             visited.add(id(node))
             for parent in node.parents:
                 build_topo(parent)
             topo.append(node)
-    build_topo(t)
+    build_topo(t)#topo will be list with initial elements as parent and children later
 
     #Step 2:accumulate gradients in reverse topological order
     grads={}
     grads[t]=var(np.ones_like(t.val))
-    for node in reversed(topo):
+    for node in reversed(topo):  #child first,parent later
         if node not in grads:
             continue
         g=grads[node]
         for parent, chainrule in zip(node.parents, node.chainrules):
-            contrib=chainrule(g)
+            contrib=chainrule(g) 
             if parent in grads:
                 grads[parent] = var(grads[parent].val + contrib.val)
             else:
                 grads[parent] = contrib
     return grads
 
+
+# #small test run
 # a = var(5)
 # b=var(7)
 # f=(a+b)*b
