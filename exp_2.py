@@ -33,43 +33,35 @@ class nn():
         self.layers=[]
         for i in range(len(layersizes)-1):
             self.layers.append(layer(self.layersizes[i],self.layersizes[i+1]))
+
     def calc(self, inputs):
         for i, x in enumerate(self.layers):
-            is_output = (i == len(self.layers) - 1)
+            is_output = (i == len(self.layers) - 1)#this check so that we can not apply activation in output layer in calcoutputs
             inputs = x.calcoutputs(inputs, is_output=is_output)
         return inputs
-    def classify(self,inputs):#choose the final answer
-        outs=self.calc(inputs)
-        return np.argmax(outs.val)
-    def cost(self,datapoint):
-        out=self.calc(datapoint[0])
-        costarr=((out-datapoint[1])**2)*0.5
-        cost=np.sum(costarr.val)
-        return cost
-    def costtotal(self, data):
-        totalcost = sum(self.cost(d) for d in data)
-        return totalcost / len(data)
+    
     def learn_pinn(self,epochs,lr):
         for e in range(epochs):
-            phyloss = var(np.zeros((1,1)))
-            for t in t_collocation:
-                t_var=var(np.array([[t]]))
+            phyloss = var(np.zeros((1,1)))#initialise to [[0]]
+            for t in t_collocation:#t_collocation is list of our our training points
+                t_var=var(np.array([[t]]))#making the point to a var object so that its compatible with out network 
                 u= self.calc(t_var)#forward pass
-                dudt=autograd(u,t_var)[t_var]
+                dudt=autograd(u)[t_var]
                 residual=dudt + u
-                phyloss=phyloss+residual ** 2
+                phyloss+=residual ** 2
             #boundary condition u(0)=1
             t0=var(np.array([[0.0]]))
             u0 =self.calc(t0)
             boundary_loss=(u0-var(np.array([[1.0]])))**2
             total_loss = phyloss + var(np.array(50.0)) * boundary_loss  # weight boundary more
-            # update weights
+            #update weights
             grads=autograd(total_loss)
             for layer in self.layers:
                 layer.applygrad(lr,grads)
             
             if e % 1000 == 0:
                 print(f"epoch {e}  loss: {total_loss.val[0][0]:.4f}")
+        print(f"Final loss: {total_loss.val[0][0]:.4f}")
 
 
 #ode is du/dt=-u and boundary point is u(0)=1
@@ -81,7 +73,7 @@ t_collocation=np.linspace(0, 2, 100)#100 points from t=0 to 2
 pinn1 = nn([1, 20, 20, 1])
 pinn1.learn_pinn(epochs=10000, lr=0.001)
 # compare against analytical solution u(t) = e^(-t)
-t_test=np.linspace(0, 2, 200)
+t_test=np.linspace(0, 3, 300)
 u_analytical=np.exp(-t_test)
 u_pinn=[pinn1.calc(var(np.array([[t]]))).val[0][0] for t in t_test]
 
