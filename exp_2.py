@@ -1,43 +1,30 @@
 import numpy as np 
 import matplotlib.pyplot as plt
-from grad_exp import var, fnsum, fnmul, fnmatmul, fnsigmoid, autograd ,fnsum_all
+from grad_exp import var,fnmatmul, fnsigmoid, autograd 
+
 class layer():
     
     def __init__(self,numnodesin,numnodesout):
         self.numnodesin=numnodesin
         self.numnodesout=numnodesout
-        self.weights = var(2 * np.random.random((numnodesout, numnodesin)) - 1)
+        self.weights = var(2 * np.random.random((numnodesout, numnodesin)) - 1)#weights and biases have initial value between -1 and 1
         self.biases = var(2 * np.random.random((numnodesout, 1)) - 1)
-        self.costgradientw=np.zeros((numnodesout,numnodesin))
+        self.costgradientw=np.zeros((numnodesout,numnodesin))#initilally gradients are zero
         self.costgradientb=np.zeros((numnodesout,1))
-        self.layeratt={}#to store data so that the calculations dont need to be done multiple times
-    def applygrad(self,lr):
-        self.biases-=self.costgradientb*lr
-        self.weights-=self.costgradientw*lr
-    def Activationfunc(self,x,deriv=False):
-        if deriv==True:
-            return x*(1-x)    
-        return 1/(1+np.exp(-x))
+    
+    def applygrad(self,lr,grads):
+        if self.weights in grads:
+            self.weights.val-=lr*grads[self.weights].val
+        if self.biases in grads:
+            self.biases.val-=lr*grads[self.biases].val
+
     def calcoutputs(self, inputs,is_output=False):
         if not isinstance(inputs, var):
             inputs = var(inputs)
-        z = fnmatmul(self.weights, inputs) + self.biases
+        z = fnmatmul(self.weights, inputs) + self.biases#Z=W*I+B
         if is_output:
-            return z  
-        return fnsigmoid(z)
-    def calcoutlayernodevalues(self,expoutputs):#for output layer only
-        dcda=self.layeratt["acts"]-expoutputs
-        dadz=self.Activationfunc(self.layeratt["acts"], True)
-        x=dadz*dcda
-        self.layeratt["outnodevalues"]=x
-        return x
-    def updategrads(self,nodevalues): #updating gradients
-        self.costgradientw+=np.dot(nodevalues,self.layeratt["inputs"].T)
-        self.costgradientb+=nodevalues
-    def hiddennodevalues(self,oldlayer,oldnodevalues):#for hidden layers
-        weightedinderiv=np.dot(oldlayer.weights.T, oldnodevalues  )      
-        newnodevalues=self.Activationfunc(self.layeratt["acts"],True)*weightedinderiv
-        return newnodevalues
+            return z#no activation on final layer so that output can be unbounded  
+        return fnsigmoid(z)#A=sig(Z)
 
 
 class nn():
@@ -62,53 +49,31 @@ class nn():
     def costtotal(self, data):
         totalcost = sum(self.cost(d) for d in data)
         return totalcost / len(data)
-    # def learn(self, trainbatch, lr):
-    #     weight_grads = {l.weights: np.zeros_like(l.weights.val) for l in self.layers}
-    #     bias_grads = {l.biases: np.zeros_like(l.biases.val) for l in self.layers}
-
-    #     for datapoint in trainbatch:
-    #         inputs = var(datapoint[0])
-    #         expected= datapoint[1]
-    #         out=self.calc(inputs)
-    #         loss=fnsum_all((out - var(expected)) ** 2 * 0.5)
-    #         grads=autograd(loss)
-
-    #         for l in self.layers:
-    #             if l.weights in grads:
-    #                 weight_grads[l.weights] += grads[l.weights]
-    #             if l.biases in grads:
-    #                 bias_grads[l.biases] += grads[l.biases]
-
-    #     for l in self.layers:
-    #         l.weights.val-=lr / len(trainbatch) * weight_grads[l.weights]
-    #         l.biases.val-=lr / len(trainbatch) * bias_grads[l.biases]
     def learn_pinn(self,epochs,lr):
         for e in range(epochs):
-            phyloss=var(0.0)
+            phyloss = var(np.zeros((1,1)))
             for t in t_collocation:
                 t_var=var(np.array([[t]]))
                 u= self.calc(t_var)#forward pass
                 dudt=autograd(u,t_var)[t_var]
                 residual=dudt + u
-                phyloss=phyloss+fnsum_all(residual ** 2)
+                phyloss=phyloss+residual ** 2
             #boundary condition u(0)=1
             t0=var(np.array([[0.0]]))
             u0 =self.calc(t0)
-            boundary_loss=fnsum_all((u0-var(np.array([[1.0]])))**2)
+            boundary_loss=(u0-var(np.array([[1.0]])))**2
             total_loss = phyloss + var(np.array(50.0)) * boundary_loss  # weight boundary more
             # update weights
             grads=autograd(total_loss)
             for layer in self.layers:
-                if layer.weights in grads:
-                    layer.weights.val -= lr * grads[layer.weights].val
-                if layer.biases in grads:
-                    layer.biases.val -= lr * grads[layer.biases].val
+                layer.applygrad(lr,grads)
             
             if e % 1000 == 0:
-                print(f"epoch {e}  loss: {total_loss.val:.4f}")
+                print(f"epoch {e}  loss: {total_loss.val[0][0]:.4f}")
 
 
 #ode is du/dt=-u and boundary point is u(0)=1
+np.random.seed(54)
 pinn1 = nn([1, 20, 20, 1])
 
 
