@@ -64,7 +64,7 @@ def fnpow(v, power):
     return var(v.val**power, [v], [x])
 
 
-def autograd(t, wrt=None):
+def autograd(t):
     #Step 1:topological sort
     topo= []
     visited= set()
