@@ -9,8 +9,6 @@ class layer():
         self.numnodesout=numnodesout
         self.weights = var(2 * np.random.random((numnodesout, numnodesin)) - 1)#weights and biases have initial value between -1 and 1
         self.biases = var(2 * np.random.random((numnodesout, 1)) - 1)
-        self.costgradientw=np.zeros((numnodesout,numnodesin))#initilally gradients are zero
-        self.costgradientb=np.zeros((numnodesout,1))
     
     def applygrad(self,lr,grads):
         if self.weights in grads:
@@ -85,4 +83,3 @@ plt.title('PINN vs Analytical Solution')
 plt.legend()
 plt.grid(True)
 plt.show()
-
