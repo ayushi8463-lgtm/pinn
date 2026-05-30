@@ -9,12 +9,31 @@ class layer():
         self.numnodesout=numnodesout
         self.weights = var(2 * np.random.random((numnodesout, numnodesin)) - 1)#weights and biases have initial value between -1 and 1
         self.biases = var(2 * np.random.random((numnodesout, 1)) - 1)
-    
-    def applygrad(self,lr,grads):
-        if self.weights in grads:
-            self.weights.val-=lr*grads[self.weights].val
-        if self.biases in grads:
-            self.biases.val-=lr*grads[self.biases].val
+        self.mw= np.zeros_like(self.weights.val)#initialise momentum for weights
+        self.vw= np.zeros_like(self.weights.val)#initialise velocity for weights
+        self.mb = np.zeros_like(self.biases.val)#same for biases
+        self.vb = np.zeros_like(self.biases.val)
+        self.t=0
+
+    # #older optimiser
+    # def applygrad(self,lr,grads):
+    #     if self.weights in grads:
+    #         self.weights.val-=lr*grads[self.weights].val
+    #     if self.biases in grads:
+    #         self.biases.val-=lr*grads[self.biases].val
+
+    def adam(self,grads,lr,beta1,beta2,ep):
+        self.t+=1
+        self.mw=beta1*self.mw+(1-beta1)*grads[self.weights].val
+        self.vw=beta2*self.vw+(1-beta2)*(grads[self.weights].val*grads[self.weights].val)
+        mwhat=self.mw/(1-beta1**self.t)
+        vwhat=self.vw/(1-beta2**self.t)
+        self.weights.val-=lr*mwhat/(np.sqrt(vwhat)+ep)
+        self.mb=beta1*self.mb+(1-beta1)*grads[self.biases].val
+        self.vb=beta2*self.vb+(1-beta2)*(grads[self.biases].val*grads[self.biases].val)
+        mbhat=self.mb/(1-beta1**self.t)
+        vbhat=self.vb/(1-beta2**self.t)
+        self.biases.val-=lr*mbhat/(np.sqrt(vbhat)+ep)
 
     def calcoutputs(self, inputs,is_output=False):
         if not isinstance(inputs, var):
@@ -55,7 +74,7 @@ class nn():
             #update weights
             grads=autograd(total_loss)
             for layer in self.layers:
-                layer.applygrad(lr,grads)
+                layer.adam(grads,lr,0.9,0.999,1e-8)
             
             if e % 1000 == 0:
                 print(f"epoch {e}  loss: {total_loss.val[0][0]:.4f}")
@@ -75,7 +94,7 @@ t_test=np.linspace(0, 3, 300)
 u_analytical=np.exp(-t_test)
 u_pinn=[pinn1.calc(var(np.array([[t]]))).val[0][0] for t in t_test]
 
-plt.plot(t_test, u_analytical, label='Analytical: e^(-t)', color='blue')
+plt.plot(t_test, u_analytical, label='Analytical:e^(-t)', color='blue')
 plt.plot(t_test, u_pinn, label='PINN', color='red', linestyle='--')
 plt.xlabel('t')
 plt.ylabel('u(t)')
