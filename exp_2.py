@@ -1,6 +1,6 @@
 import numpy as np 
 import matplotlib.pyplot as plt
-from grad_exp import var,fnmatmul, fnsigmoid, autograd 
+from grad_exp import var,fnmatmul, fnsigmoid, autograd, fntanh,fnsum_all
 
 class layer():
     
@@ -41,7 +41,7 @@ class layer():
         z = fnmatmul(self.weights, inputs) + self.biases#Z=W*I+B
         if is_output:
             return z#no activation on final layer so that output can be unbounded  
-        return fnsigmoid(z)#A=sig(Z)
+        return fntanh(z)#A=sig(Z)
 
 
 class nn():
@@ -59,13 +59,12 @@ class nn():
     
     def learn_pinn(self,epochs,lr):
         for e in range(epochs):
-            phyloss = var(np.zeros((1,1)))#initialise to [[0]]
-            for t in t_collocation:#t_collocation is list of our our training points
-                t_var=var(np.array([[t]]))#making the point to a var object so that its compatible with out network 
-                u= self.calc(t_var)#forward pass
-                dudt=autograd(u)[t_var]
-                residual=dudt + u
-                phyloss+=residual ** 2
+            batch_size=len(t_collocation)
+            t_batch = var(t_collocation.reshape(1, -1))
+            u_batch = self.calc(t_batch)
+            dudt = autograd(u_batch)[t_batch] #put it through autograd engine
+            residual=dudt + u_batch
+            phyloss=fnsum_all(residual ** 2)* var(1/batch_size)#add all and divide by batch size
             #boundary condition u(0)=1
             t0=var(np.array([[0.0]]))
             u0 =self.calc(t0)
