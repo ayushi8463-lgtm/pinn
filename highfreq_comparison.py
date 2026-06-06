@@ -100,10 +100,11 @@ def test(pinn):
     l2_error = jnp.sqrt(jnp.sum((u_pinn - u_analytical)**2)) / jnp.sqrt(jnp.sum(u_analytical**2))
     return l2_error
 
-exp=[
+exp=[[[1,32,32,1],[1,64,64,1],[1,128,128,1]],
+     [[1,32,32,32,1],[1,64,64,64,1],[1,128,128,128,1]],
      [[1,32,32,32,32,1],[1,64,64,64,64,1],[1,128,128,128,128,1]]]
 
-act=[jnp.sin]
+act=[jax.nn.relu,jax.nn.sigmoid,jnp.tanh,jnp.sin]
 
 print(f"{'Architecture':<26} {'Median L2':<12} {'Std':<12} {'Min':<12} {'Max':<12}")#headers
 
