@@ -84,10 +84,8 @@ def adam(weights, biases, t_collocation, mw, vw, mb, vb, t, lr):
 
 def learn(layersizes,epochs,lr,key):
     weights,biases,mw,vw,mb,vb,t=initialise(layersizes,key)
-    
+    t_collocation = jnp.linspace(0,3*jnp.pi, 1000)
     for e in range(epochs):
-        key, subkey = jax.random.split(key)
-        t_collocation = jax.random.uniform(subkey, (1000,), minval=0, maxval=3*jnp.pi)
         current_lr = lr if e < 10000 else lr * 0.1
         weights, biases, mw, vw, mb, vb, t, loss = adam(
             weights, biases, t_collocation, mw, vw, mb, vb, t, current_lr)
@@ -102,11 +100,10 @@ def test(pinn):
     l2_error = jnp.sqrt(jnp.sum((u_pinn - u_analytical)**2)) / jnp.sqrt(jnp.sum(u_analytical**2))
     return l2_error
 
-exp=[[[1,32,32,1],[1,64,64,1],[1,128,128,1]],
-     [[1,32,32,32,1],[1,64,64,64,1],[1,128,128,128,1]],
+exp=[
      [[1,32,32,32,32,1],[1,64,64,64,64,1],[1,128,128,128,128,1]]]
 
-act=[jax.nn.relu,jax.nn.sigmoid,jnp.tanh,jnp.sin]
+act=[jnp.sin]
 
 print(f"{'Architecture':<26} {'Median L2':<12} {'Std':<12} {'Min':<12} {'Max':<12}")#headers
 
