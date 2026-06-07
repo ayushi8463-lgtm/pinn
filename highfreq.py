@@ -13,13 +13,15 @@ def initialise(layersizes,key):
     mb=[]
     vb=[]
     for i,(numnodesin,numnodesout) in enumerate(zip(layersizes[:-1],layersizes[1:])):
-        key,subkey=jax.random.split(key)
-        if i == 0:
+        key, subkey1,subkey2= jax.random.split(key,3)
+        if i==0:
             limit = 1.0 / numnodesin
         else:
-            limit = jnp.sqrt(6.0 / numnodesin)
-        w = jax.random.uniform(subkey, (numnodesout, numnodesin), minval=-limit, maxval=limit)
-        
+            limit = jnp.sqrt(6.0 / numnodesin) 
+        w = jax.random.uniform(subkey1, (numnodesout, numnodesin), minval=-limit, maxval=limit)
+        b_limit = 1.0 / numnodesin
+        b = jax.random.uniform(subkey2, (numnodesout, 1), minval=-b_limit, maxval=b_limit)
+
         key,subkey=jax.random.split(key)
         b=jax.random.uniform(subkey,(numnodesout,1),minval=-1,maxval=1)
         weights.append(w)
@@ -42,7 +44,6 @@ def calc(t,weights,biases):
     return a
 
 def calcloss(weights,biases,t_collocation):
-    batch_size=len(t_collocation)
 
     ufn=lambda t: calc(t,weights,biases)[0,0]#this takes single scalar point from t_collocation
     dudtfn=jax.grad(ufn)
