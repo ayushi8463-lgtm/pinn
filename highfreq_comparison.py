@@ -12,15 +12,12 @@ def initialise(layersizes,key):
     mb=[]
     vb=[]
     for i,(numnodesin,numnodesout) in enumerate(zip(layersizes[:-1],layersizes[1:])):
-        key,subkey=jax.random.split(key)
-        if i == 0:
-            limit = 1.0 / numnodesin
-        else:
-            limit = jnp.sqrt(6.0 / numnodesin)
+
+        key, subkey= jax.random.split(key)
+        limit = jnp.sqrt(6.0 / (numnodesin + numnodesout))#xavier intialisation
         w = jax.random.uniform(subkey, (numnodesout, numnodesin), minval=-limit, maxval=limit)
-        
-        key,subkey=jax.random.split(key)
-        b=jax.random.uniform(subkey,(numnodesout,1),minval=-1,maxval=1)
+        b = jnp.zeros((numnodesout, 1))
+
         weights.append(w)
         biases.append(b)
         mw.append(jnp.zeros_like(w))
@@ -104,7 +101,7 @@ exp=[[[1,32,32,1],[1,64,64,1],[1,128,128,1]],
      [[1,32,32,32,1],[1,64,64,64,1],[1,128,128,128,1]],
      [[1,32,32,32,32,1],[1,64,64,64,64,1],[1,128,128,128,128,1]]]
 
-act=[jax.nn.relu,jax.nn.sigmoid,jnp.tanh,jnp.sin]
+act=[jax.nn.sigmoid,jnp.tanh,jnp.sin]
 
 print(f"{'Architecture':<26} {'Median L2':<12} {'Std':<12} {'Min':<12} {'Max':<12}")#headers
 
@@ -114,7 +111,7 @@ for activation in act:
     for i in exp:
         for j in i:
             errors = []
-            for seed in [0, 7, 42, 99, 123]:
+            for seed in [0,10,20,30,40]:
                 key = jax.random.PRNGKey(seed)
                 pinn=learn(j, 15000, 0.001,key)
                 loss=test(pinn)
