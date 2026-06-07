@@ -1,6 +1,7 @@
 import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
+import time
 
 #initialisation
 def initialise(layersizes,key):
@@ -12,10 +13,10 @@ def initialise(layersizes,key):
     mb=[]
     vb=[]
     for (numnodesin,numnodesout) in zip(layersizes[:-1],layersizes[1:]):
-        key,subkey=jax.random.split(key)
-        w=jax.random.uniform(subkey,(numnodesout,numnodesin),minval=-1,maxval=1)
-        key,subkey=jax.random.split(key)
-        b=jax.random.uniform(subkey,(numnodesout,1),minval=-1,maxval=1)
+        key, subkey= jax.random.split(key)
+        limit = jnp.sqrt(6.0 / (numnodesin + numnodesout))#xavier intialisation
+        w = jax.random.uniform(subkey, (numnodesout, numnodesin), minval=-limit, maxval=limit)
+        b = jnp.zeros((numnodesout, 1))
         weights.append(w)
         biases.append(b)
         mw.append(jnp.zeros_like(w))
@@ -32,12 +33,10 @@ def calc(t,weights,biases):
         a=w@a+b
         is_last = (i == len(biases)-1)
         if not is_last:
-            a = jnp.tanh(a) 
+            a = jnp.sin(a) 
     return a
 
 def calcloss(weights,biases,t_collocation):
-    batch_size=len(t_collocation)
-
     ufn=lambda t: calc(t,weights,biases)[0,0]#this takes single scalar point from t_collocation
     dudtfn=jax.grad(ufn)
     d2udt2fn=jax.grad(dudtfn)
@@ -50,7 +49,7 @@ def calcloss(weights,biases,t_collocation):
     u0=ufn(0.0)
     dudt0=dudtfn(0.0)
     boundary_loss=(u0-1.0)**2+dudt0**2
-    total_loss=phyloss+boundary_loss*500
+    total_loss=phyloss+boundary_loss
     return total_loss
 
 @jax.jit #to speed up subsequent calls
@@ -79,20 +78,23 @@ def adam(weights, biases, t_collocation, mw, vw, mb, vb, t, lr):
 
 def learn(layersizes,epochs,lr):
     weights,biases,mw,vw,mb,vb,t=initialise(layersizes,key)
-    t_collocation = jnp.linspace(0,3*jnp.pi, 300)
+    t_collocation = jnp.linspace(0,3*jnp.pi, 500)
     for e in range(epochs):
+        current_lr =lr * (0.1 ** (e / epochs))
         weights, biases, mw, vw, mb, vb, t, loss = adam(
-            weights, biases, t_collocation, mw, vw, mb, vb, t, lr)
+            weights, biases, t_collocation, mw, vw, mb, vb, t,current_lr)
         if e % 1000 == 0:
             print(f"epoch {e}  loss: {loss:.6f}")
     return weights, biases
 
-
+start=time.time()
 key = jax.random.PRNGKey(50)
-pinn1=learn([1, 64,64,64, 1], 30000, 0.001)
+pinn1=learn([1,16,16, 1], 15000, 0.001)
+elapsed=time.time()-start
 t_test=jnp.linspace(0,3*jnp.pi, 300)
 u_analytical=jnp.cos(t_test)
 u_pinn=[calc(t,*pinn1)[0,0] for t in t_test]
+print(f"time taken {elapsed:.4f}s")
 
 plt.plot(t_test, u_analytical, label='Analytical: cos(t)', color='blue')
 plt.plot(t_test, u_pinn, label='PINN', color='red', linestyle='--')
@@ -101,5 +103,4 @@ plt.ylabel('u(t)')
 plt.title('PINN vs Analytical Solution')
 plt.legend()
 plt.show()
-
 
