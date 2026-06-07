@@ -78,7 +78,7 @@ def adam(weights, biases, t_collocation, mw, vw, mb, vb, t, lr):
 
     return new_weights, new_biases, mw, vw, mb, vb,t, loss
 
-def learn(layersizes,epochs,lr):
+def learn(layersizes,epochs,lr,key):
     weights,biases,mw,vw,mb,vb,t=initialise(layersizes,key)
     t_collocation = jnp.linspace(0,3*jnp.pi, 500)
     for e in range(epochs):
@@ -114,7 +114,7 @@ for activation in act:
             errors = []
             for seed in [0,10,20,30,40]:
                 key = jax.random.PRNGKey(seed)
-                pinn=learn(j, 15000, 0.001)
+                pinn=learn(j, 15000, 0.001,key)
                 loss=test(pinn)
                 errors.append(loss)
             errors=sorted([float(e) for e in errors])
