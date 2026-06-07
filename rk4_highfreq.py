@@ -4,7 +4,7 @@ import time
 steps=[100, 300, 1000, 3000, 10000]
 t_test=np.linspace(0, 3*np.pi, 300)
 u_analytical=np.cos(5*t_test)
-#Solves d2u/dt2 = -u
+#Solves d2u/dt2 = -25u
 
 def rk4(t_span, u0, dudt0, n_steps):
     t0, tf = t_span
