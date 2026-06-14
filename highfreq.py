@@ -22,8 +22,6 @@ def initialise(layersizes,key):
         b_limit = 1.0 / numnodesin
         b = jax.random.uniform(subkey2, (numnodesout, 1), minval=-b_limit, maxval=b_limit)
 
-        key,subkey=jax.random.split(key)
-        b=jax.random.uniform(subkey,(numnodesout,1),minval=-1,maxval=1)
         weights.append(w)
         biases.append(b)
         mw.append(jnp.zeros_like(w))
@@ -113,4 +111,3 @@ plt.ylabel('u(t)')
 plt.title('PINN vs Analytical Solution')
 plt.legend()
 plt.show()
-
