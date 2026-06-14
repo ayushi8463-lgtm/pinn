@@ -89,7 +89,7 @@ def learn(layersizes,epochs,lr):
 
 start=time.time()
 key = jax.random.PRNGKey(50)
-pinn1=learn([1,16,16, 1], 15000, 0.001)
+pinn1=learn([1,32,32, 1], 15000, 0.001)
 elapsed=time.time()-start
 t_test=jnp.linspace(0,3*jnp.pi, 300)
 u_analytical=jnp.cos(t_test)
@@ -103,4 +103,3 @@ plt.ylabel('u(t)')
 plt.title('PINN vs Analytical Solution')
 plt.legend()
 plt.show()
-
