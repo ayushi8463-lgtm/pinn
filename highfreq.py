@@ -104,7 +104,7 @@ u_analytical=jnp.cos(5*t_test)
 u_pinn=[calc(t,*pinn1)[0,0] for t in t_test]
 print(f"time taken {elapsed:.4f}s")
 
-plt.plot(t_test, u_analytical, label='Analytical: cos(t)', color='blue')
+plt.plot(t_test, u_analytical, label='Analytical: cos(5t)', color='blue')
 plt.plot(t_test, u_pinn, label='PINN', color='red', linestyle='--')
 plt.xlabel('t')
 plt.ylabel('u(t)')
