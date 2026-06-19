@@ -24,8 +24,8 @@ def initialise(layersizes,key):
         vw.append(jnp.zeros_like(w))
         mb.append(jnp.zeros_like(b))
         vb.append(jnp.zeros_like(b))
-    t=0
-    return weights,biases,mw,vw,mb,vb,t
+    ta=jnp.zeros((),dtype=jnp.int32)
+    return weights,biases,mw,vw,mb,vb,ta
 
 #forward pass
 def calc(t,weights,biases):
@@ -38,7 +38,6 @@ def calc(t,weights,biases):
     return a
 
 def calcloss(weights,biases,t_collocation):
-    batch_size=len(t_collocation)
 
     ufn=lambda t: calc(t,weights,biases)[0,0]#this takes single scalar point from t_collocation
     dudtfn=jax.grad(ufn)
@@ -56,9 +55,9 @@ def calcloss(weights,biases,t_collocation):
     return total_loss
 
 @jax.jit #to speed up subsequent calls
-def adam(weights, biases, t_collocation, mw, vw, mb, vb, t, lr):
+def adam(weights, biases, t_collocation, mw, vw, mb, vb, ta, lr):
     loss,(grad_w,grad_b)=jax.value_and_grad(calcloss,argnums=(0,1))(weights,biases,t_collocation)
-    t=t+1
+    ta=ta+1
     beta1=0.9 
     beta2=0.999
     ep=1e-8
@@ -68,24 +67,24 @@ def adam(weights, biases, t_collocation, mw, vw, mb, vb, t, lr):
     mb=[beta1*m+ (1-beta1)*g for m, g in zip(mb, grad_b)]
     vb=[beta2*v+ (1-beta2)*g**2 for v, g in zip(vb, grad_b)]
 
-    mwhat= [m/ (1- beta1**t) for m in mw]
-    vwhat= [v/ (1 - beta2**t) for v in vw]
-    mbhat= [m/ (1 - beta1**t) for m in mb]
-    vbhat= [v/ (1 - beta2**t) for v in vb]
+    mwhat= [m/ (1- beta1**ta) for m in mw]
+    vwhat= [v/ (1 - beta2**ta) for v in vw]
+    mbhat= [m/ (1 - beta1**ta) for m in mb]
+    vbhat= [v/ (1 - beta2**ta) for v in vb]
 
-    new_weights = [w - lr * m / (jnp.sqrt(v) + ep) for w, m, v in zip(weights, mwhat, vwhat)]
-    new_biases  = [b - lr * m / (jnp.sqrt(v) + ep) for b, m, v in zip(biases,  mbhat, vbhat)]
+    effective_lr = jnp.where(ta >= 10000, lr * 0.1, lr)
+    new_weights = [w - effective_lr * m / (jnp.sqrt(v) + ep) for w, m, v in zip(weights, mwhat, vwhat)]
+    new_biases  = [b - effective_lr * m / (jnp.sqrt(v) + ep) for b, m, v in zip(biases,  mbhat, vbhat)]
 
 
-    return new_weights, new_biases, mw, vw, mb, vb,t, loss
+    return new_weights, new_biases, mw, vw, mb, vb,ta, loss
 
 def learn(layersizes,epochs,lr,key):
     weights,biases,mw,vw,mb,vb,t=initialise(layersizes,key)
     t_collocation = jnp.linspace(0,3*jnp.pi, 1000)
     for e in range(epochs):
-        current_lr = lr if e < 10000 else lr * 0.1
-        weights, biases, mw, vw, mb, vb, t, loss = adam(
-            weights, biases, t_collocation, mw, vw, mb, vb, t, current_lr)
+        weights, biases, mw, vw, mb, vb, ta, loss = adam(
+            weights, biases, t_collocation, mw, vw, mb, vb, ta, lr)
         # if e % 1000 == 0:
         #     print(f"epoch {e}  loss: {loss:.6f}")
     return weights, biases
