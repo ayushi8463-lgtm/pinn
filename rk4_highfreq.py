@@ -1,7 +1,7 @@
 import numpy as np
 import time
 
-steps=[100, 300, 1000, 3000, 10000]
+steps=[100, 500, 1000, 5000, 10000]
 t_test=np.linspace(0, 3*np.pi, 300)
 u_analytical=np.cos(5*t_test)
 #Solves d2u/dt2 = -25u
@@ -40,4 +40,3 @@ for n in steps:
     print(f"steps={n:6d}  L2={l2:.2e}  time={elapsed:.4f}s")
 
     
-

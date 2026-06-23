@@ -1,7 +1,7 @@
 import numpy as np
 import time
 
-steps= [100, 300, 1000, 3000, 10000]
+steps= [100, 500, 1000, 5000, 10000]
 t_analytical = np.linspace(0, 3, 300)
 u_analytical = np.exp(t_analytical)
 # Solves d4u/dt4 = u

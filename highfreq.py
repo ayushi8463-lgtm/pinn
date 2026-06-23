@@ -96,11 +96,12 @@ def learn(layersizes,epochs,lr,key):
 
 start=time.time()
 key = jax.random.PRNGKey(50)
-pinn1=learn([1, 64,64,64,64, 1], 15000, 0.001,key)
+weights,biases=learn([1, 64,64,64,64, 1], 15000, 0.001,key)
+weights[0].block_until_ready()
 elapsed=time.time()-start
 t_test=jnp.linspace(0,3*jnp.pi, 300)
 u_analytical=jnp.cos(5*t_test)
-ufn= lambda t: calc(t, *pinn1)[0, 0]
+ufn= lambda t: calc(t, weights,biases)[0, 0]
 u_pinn = jax.vmap(ufn)(t_test)
 print(f"time taken {elapsed:.4f}s")
 
