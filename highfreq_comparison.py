@@ -96,7 +96,8 @@ def test(pinn):
     l2_error = jnp.sqrt(jnp.sum((u_pinn - u_analytical)**2)) / jnp.sqrt(jnp.sum(u_analytical**2))
     return l2_error
 
-exp=[[[1,32,32,1],[1,64,64,1],[1,128,128,1]],
+exp=[[[1,32,1],[1,64,1],[1,128,1]],
+     [[1,32,32,1],[1,64,64,1],[1,128,128,1]],
      [[1,32,32,32,1],[1,64,64,64,1],[1,128,128,128,1]],
      [[1,32,32,32,32,1],[1,64,64,64,64,1],[1,128,128,128,128,1]]]
 
@@ -121,7 +122,6 @@ for activation in act:
             mn= min(errors)
             mx = max(errors)
             print(f"{str(j):<26} {median:<12.4f} {std:<12.4f} {mn:<12.4f} {mx:<12.4f}")
-
 
 
 
