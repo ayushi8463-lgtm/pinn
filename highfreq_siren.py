@@ -2,11 +2,11 @@ import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 
+W0 = 30.0
 #initialisation
 def initialise(layersizes,key):
     weights=[]
     biases=[]
-    #adam initialisation
     mw=[]
     vw=[]
     mb=[]
@@ -14,13 +14,12 @@ def initialise(layersizes,key):
     for i,(numnodesin,numnodesout) in enumerate(zip(layersizes[:-1],layersizes[1:])):
         key, subkey1,subkey2= jax.random.split(key,3)
         if i==0:
-            limit = 1.0 / numnodesin
+            limit= 1.0/numnodesin
         else:
-            limit = jnp.sqrt(6.0 / numnodesin) 
-        w = jax.random.uniform(subkey1, (numnodesout, numnodesin), minval=-limit, maxval=limit)
-        b_limit = 1.0 / numnodesin
-        b = jax.random.uniform(subkey2, (numnodesout, 1), minval=-b_limit, maxval=b_limit)
-
+            limit= jnp.sqrt(6.0 / numnodesin)/W0 
+        w= jax.random.uniform(subkey1, (numnodesout, numnodesin), minval=-limit, maxval=limit)
+        b_limit= 1.0 / numnodesin
+        b=jax.random.uniform(subkey2, (numnodesout, 1), minval=-b_limit, maxval=b_limit)
         weights.append(w)
         biases.append(b)
         mw.append(jnp.zeros_like(w))
@@ -32,12 +31,15 @@ def initialise(layersizes,key):
 
 #forward pass
 def calc(t,weights,biases):
-    a=jnp.array([[t]])#convert scalar t into 1x1 matrix
+    a=jnp.array([[t]])
     for i,(w,b) in enumerate(zip(weights,biases)):
         a=w@a+b
-        is_last = (i == len(biases)-1)
+        is_last= (i== len(biases)-1)
         if not is_last:
-            a = jnp.sin(a) 
+            if i==0:
+                a=jnp.sin(W0 * a)
+            else:
+                a =jnp.sin(a)
     return a
 
 def calcloss(weights,biases,t_collocation):
@@ -53,7 +55,7 @@ def calcloss(weights,biases,t_collocation):
     u0=ufn(0.0)
     dudt0=dudtfn(0.0)
     boundary_loss=(u0-1.0)**2+dudt0**2
-    total_loss=phyloss+boundary_loss*500
+    total_loss=phyloss+boundary_loss
     return total_loss
 
 @jax.jit #to speed up subsequent calls
@@ -83,7 +85,7 @@ def adam(weights, biases, t_collocation, mw, vw, mb, vb, ta, lr):
 
 def learn(layersizes,epochs,lr,key):
     weights,biases,mw,vw,mb,vb,ta=initialise(layersizes,key)
-    t_collocation = jnp.linspace(0,3*jnp.pi, 1000)
+    t_collocation = jnp.linspace(0,3*jnp.pi, 500)
     for e in range(epochs):
         weights, biases, mw, vw, mb, vb, ta, loss = adam(
             weights, biases, t_collocation, mw, vw, mb, vb, ta, lr)
@@ -99,10 +101,10 @@ def test(pinn):
     l2_error = jnp.sqrt(jnp.sum((u_pinn - u_analytical)**2)) / jnp.sqrt(jnp.sum(u_analytical**2))
     return l2_error
 
-exp=[[[1,32,1],[1,64,1],[1,128,1]],
-     [[1,32,32,1],[1,64,64,1],[1,128,128,1]],
-     [[1,32,32,32,1],[1,64,64,64,1],[1,128,128,128,1]],
-     [[1,32,32,32,32,1],[1,64,64,64,64,1],[1,128,128,128,128,1]]]
+exp=[[[1,16,1],[1,32,1],[1,64,1]],
+     [[1,16,16,1],[1,32,32,1],[1,64,64,1]],
+     [[1,16,16,16,1],[1,32,32,32,1],[1,64,64,64,1]],
+     [[1,16,16,16,16,1],[1,32,32,32,32,1],[1,64,64,64,64,1]]]
 
 
 print(f"{'Architecture':<26} {'Median L2':<12} {'Std':<12} {'Min':<12} {'Max':<12}")#headers
@@ -121,7 +123,7 @@ for i in exp:
         std= (sum((e - median)**2 for e in errors) / len(errors)) ** 0.5
         mn= min(errors)
         mx = max(errors)
-        print(f"{str(j):<26} {median:<12.4f} {std:<12.4f} {mn:<12.4f} {mx:<12.4f}")
+        print(f"{str(j):<26} {median:<12.6f} {std:<12.6f} {mn:<12.6f} {mx:<12.6f}")
 
 
 

@@ -51,7 +51,7 @@ def calcloss(weights,biases,t_collocation):
     u0=ufn(0.0)
     dudt0=dudtfn(0.0)
     boundary_loss=(u0-1.0)**2+dudt0**2
-    total_loss=phyloss+boundary_loss*500
+    total_loss=phyloss+boundary_loss
     return total_loss
 
 @jax.jit #to speed up subsequent calls
@@ -81,7 +81,7 @@ def adam(weights, biases, t_collocation, mw, vw, mb, vb, ta, lr):
 
 def learn(layersizes,epochs,lr,key):
     weights,biases,mw,vw,mb,vb,t=initialise(layersizes,key)
-    t_collocation = jnp.linspace(0,3*jnp.pi, 1000)
+    t_collocation = jnp.linspace(0,3*jnp.pi, 500)
     for e in range(epochs):
         weights, biases, mw, vw, mb, vb, ta, loss = adam(
             weights, biases, t_collocation, mw, vw, mb, vb, ta, lr)
@@ -96,10 +96,10 @@ def test(pinn):
     l2_error = jnp.sqrt(jnp.sum((u_pinn - u_analytical)**2)) / jnp.sqrt(jnp.sum(u_analytical**2))
     return l2_error
 
-exp=[[[1,32,1],[1,64,1],[1,128,1]],
-     [[1,32,32,1],[1,64,64,1],[1,128,128,1]],
-     [[1,32,32,32,1],[1,64,64,64,1],[1,128,128,128,1]],
-     [[1,32,32,32,32,1],[1,64,64,64,64,1],[1,128,128,128,128,1]]]
+exp=[[[1,16,1],[1,32,1],[1,64,1]],
+     [[1,16,16,1],[1,32,32,1],[1,64,64,1]],
+     [[1,16,16,16,1],[1,32,32,32,1],[1,64,64,64,1]],
+     [[1,16,16,16,16,1],[1,32,32,32,32,1],[1,64,64,64,64,1]]]
 
 act=[jax.nn.sigmoid,jnp.tanh,jnp.sin]
 
