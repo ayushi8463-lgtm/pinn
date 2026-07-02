@@ -3,7 +3,7 @@ import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import time
 
-W0 = 30.0
+W0 = 10.0
 #initialisation
 def initialise(layersizes,key):
     weights=[]
@@ -37,10 +37,8 @@ def calc(t,weights,biases):
         a=w@a+b
         is_last= (i== len(biases)-1)
         if not is_last:
-            if i==0:
-                a=jnp.sin(W0 * a)
-            else:
-                a =jnp.sin(a)
+            a=jnp.sin(W0 * a)
+            
     return a
 
 def calcloss(weights,biases,t_collocation):
