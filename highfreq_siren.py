@@ -21,7 +21,7 @@ def initialise(layersizes,key):
         else:
             limit= jnp.sqrt(6.0 / numnodesin)/W0 
         w= jax.random.uniform(subkey1, (numnodesout, numnodesin), minval=-limit, maxval=limit)
-        b_limit= 1.0 / numnodesin
+        b_limit= 1.0 / jnp.sqrt(numnodesin)
         b=jax.random.uniform(subkey2, (numnodesout, 1), minval=-b_limit, maxval=b_limit)
         weights.append(w)
         biases.append(b)
