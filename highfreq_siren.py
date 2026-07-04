@@ -2,7 +2,10 @@ import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 
-W0 = 10.0
+W0 = 30.0
+t_min, t_max = 0.0, 3*jnp.pi
+def normalize_t(t):
+    return (2.0*(t - t_min)/(t_max - t_min))- 1.0
 #initialisation
 def initialise(layersizes,key):
     weights=[]
@@ -31,7 +34,8 @@ def initialise(layersizes,key):
 
 #forward pass
 def calc(t,weights,biases):
-    a=jnp.array([[t]])
+    t_norm = normalize_t(t)        
+    a = jnp.array([[t_norm]]) 
     for i,(w,b) in enumerate(zip(weights,biases)):
         a=w@a+b
         is_last= (i== len(biases)-1)

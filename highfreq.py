@@ -3,7 +3,10 @@ import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import time
 
-W0 = 10.0
+W0 = 30.0
+t_min, t_max = 0.0, 3*jnp.pi
+def normalize_t(t):
+    return (2.0*(t - t_min)/(t_max - t_min))- 1.0
 #initialisation
 def initialise(layersizes,key):
     weights=[]
@@ -32,7 +35,8 @@ def initialise(layersizes,key):
 
 #forward pass
 def calc(t,weights,biases):
-    a=jnp.array([[t]])
+    t_norm = normalize_t(t)        
+    a = jnp.array([[t_norm]]) 
     for i,(w,b) in enumerate(zip(weights,biases)):
         a=w@a+b
         is_last= (i== len(biases)-1)
@@ -90,13 +94,13 @@ def learn(layersizes,epochs,lr,key):
         weights, biases, mw, vw, mb, vb, ta, loss = adam(
             weights, biases, t_collocation, mw, vw, mb, vb, ta, lr)
         if e % 1000 == 0:
-            print(f"epoch {e}  loss: {loss:.6f}")
+            print(f"epoch {e}  loss: {loss:.8f}")
     print(f"epoch {e}  loss: {loss:.6f}")  
     return weights, biases
 
 start=time.time()
 key = jax.random.PRNGKey(50)
-weights,biases=learn([1, 64, 1], 15000, 0.001,key)
+weights,biases=learn([1, 32, 1], 15000, 0.001,key)
 weights[0].block_until_ready()
 elapsed=time.time()-start
 t_test=jnp.linspace(0,3*jnp.pi, 300)
